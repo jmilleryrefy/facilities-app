@@ -19,11 +19,11 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => {
-    return pathname === path ? "bg-blue-700" : "";
+    return pathname === path ? "bg-primary-dark" : "";
   };
 
   return (
-    <nav className="bg-blue-600 text-white shadow-lg">
+    <nav className="bg-primary text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -33,7 +33,7 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
             <div className="ml-10 flex items-baseline space-x-4">
               <Link
                 href="/my-requests"
-                className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors ${isActive(
+                className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition-colors ${isActive(
                   "/my-requests"
                 )}`}
               >
@@ -41,7 +41,7 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
               </Link>
               <Link
                 href="/new-request"
-                className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors ${isActive(
+                className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition-colors ${isActive(
                   "/new-request"
                 )}`}
               >
@@ -50,7 +50,7 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
               {user.role === "ADMIN" && (
                 <Link
                   href="/admin"
-                  className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors ${isActive(
+                  className={`px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition-colors ${isActive(
                     "/admin"
                   )}`}
                 >
@@ -75,7 +75,7 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
             )}
             <button
               onClick={onSignOut}
-              className="px-3 py-2 rounded-md text-sm font-medium bg-blue-700 hover:bg-blue-800 transition-colors"
+              className="px-3 py-2 rounded-md text-sm font-medium bg-primary-dark hover:bg-primary-dark/80 transition-colors"
             >
               Sign Out
             </button>

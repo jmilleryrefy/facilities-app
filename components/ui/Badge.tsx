@@ -20,21 +20,21 @@ export default function Badge({
 
   // Status badge colors
   const statusStyles = {
-    PENDING: "bg-yellow-100 text-yellow-800",
-    IN_PROGRESS: "bg-blue-100 text-blue-800",
-    RESOLVED: "bg-green-100 text-green-800",
-    CLOSED: "bg-gray-100 text-gray-800",
+    PENDING: "bg-warning-bg text-warning-dark",
+    IN_PROGRESS: "bg-secondary-bg text-secondary-dark",
+    RESOLVED: "bg-success-bg text-success-dark",
+    CLOSED: "bg-neutral-300 text-neutral-700",
   };
 
   // Severity badge colors
   const severityStyles = {
-    LOW: "bg-green-100 text-green-800",
-    MEDIUM: "bg-yellow-100 text-yellow-800",
-    HIGH: "bg-orange-100 text-orange-800",
-    CRITICAL: "bg-red-100 text-red-800",
+    LOW: "bg-success-bg text-success-dark",
+    MEDIUM: "bg-warning-bg text-warning-dark",
+    HIGH: "bg-accent-bg text-accent-dark",
+    CRITICAL: "bg-error-bg text-error-dark",
   };
 
-  let styles = "bg-gray-100 text-gray-800";
+  let styles = "bg-neutral-300 text-neutral-700";
 
   if (variant === "status" && status) {
     styles = statusStyles[status];

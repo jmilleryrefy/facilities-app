@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-bg to-secondary-bg">
       <Card className="w-full max-w-md mx-4">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Facility Requests</CardTitle>
-          <p className="text-gray-600 mt-2">Sign in to manage facility requests</p>
+          <p className="text-neutral-600 mt-2">Sign in to manage facility requests</p>
         </CardHeader>
         <CardContent>
           <form
@@ -29,7 +29,7 @@ export default function LoginPage() {
               Sign in with Microsoft
             </Button>
           </form>
-          <div className="mt-6 text-sm text-gray-600 text-center">
+          <div className="mt-6 text-sm text-neutral-600 text-center">
             <p>Only @yrefy.com, @investyrefy.com, and @invessio.com</p>
             <p>email addresses are allowed</p>
           </div>
