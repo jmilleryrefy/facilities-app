@@ -41,28 +41,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, profile }) {
+    async signIn({ user, profile, account }) {
       // Validate email domain
       if (!user.email || !isAllowedDomain(user.email)) {
         return false;
       }
 
-      // Update user with profile information from Microsoft
-      if (user.email && profile) {
+      // After adapter creates the user, update with Microsoft profile info
+      // Only update if this is a new sign-in (account and profile exist)
+      if (account && profile && user.email) {
         const msProfile = profile as MicrosoftProfile;
-        await prisma.user.upsert({
+        
+        // Use updateMany to avoid conflicts - it won't fail if user doesn't exist yet
+        await prisma.user.updateMany({
           where: { email: user.email },
-          update: {
-            name: user.name,
-            image: user.image,
-            department: msProfile.department,
-            jobTitle: msProfile.jobTitle,
-            role: isAdmin(user.email) ? Role.ADMIN : Role.USER,
-          },
-          create: {
-            email: user.email,
-            name: user.name,
-            image: user.image,
+          data: {
+            name: user.name || undefined,
+            image: user.image || undefined,
             department: msProfile.department,
             jobTitle: msProfile.jobTitle,
             role: isAdmin(user.email) ? Role.ADMIN : Role.USER,
