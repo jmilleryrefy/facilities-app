@@ -1,4 +1,4 @@
-import { signIn } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
@@ -14,7 +14,7 @@ export default function LoginPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("azure-ad", { redirectTo: "/my-requests" });
+              redirect("/api/auth/signin?callbackUrl=/my-requests");
             }}
           >
             <Button type="submit" className="w-full" size="lg">

@@ -97,7 +97,3 @@ export default handler;
 
 // Export getServerSession with authOptions for App Router
 export const auth = () => getServerSession(authOptions);
-
-// Re-export signIn and signOut from the handler for server actions
-export const signIn = handler.signIn;
-export const signOut = handler.signOut;
