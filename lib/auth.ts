@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
       // Only update if this is a new sign-in (account and profile exist)
       if (account && profile && user.email) {
         const msProfile = profile as MicrosoftProfile;
-        
+
         // Use updateMany to avoid conflicts - it won't fail if user doesn't exist yet
         await prisma.user.updateMany({
           where: { email: user.email },
@@ -71,17 +71,30 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async session({ session, user }) {
-      if (session.user) {
-        // Fetch fresh user data from database
+    async jwt({ token, user }) {
+      // Initial sign in - add user info to token
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+
+        // Fetch user details from database
         const dbUser = await prisma.user.findUnique({
-          where: { email: session.user.email! },
+          where: { email: user.email! },
         });
 
-        session.user.id = user.id;
-        session.user.role = dbUser?.role || Role.USER;
-        session.user.department = dbUser?.department;
-        session.user.jobTitle = dbUser?.jobTitle;
+        token.role = dbUser?.role || Role.USER;
+        token.department = dbUser?.department;
+        token.jobTitle = dbUser?.jobTitle;
+      }
+
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as Role;
+        session.user.department = token.department as string | undefined;
+        session.user.jobTitle = token.jobTitle as string | undefined;
       }
       return session;
     },
@@ -90,7 +103,7 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
 };
 
