@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import AzureADProvider from "next-auth/providers/azure-ad";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "./prisma";
 import { Role } from "@prisma/client";
 
@@ -25,14 +27,14 @@ function isAdmin(email: string): boolean {
   return ADMIN_USERNAMES.includes(username);
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma) as any,
   providers: [
-    MicrosoftEntraID({
+    AzureADProvider({
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
-      issuer: `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!}/v2.0`,
+      tenantId: process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!,
       authorization: {
         params: {
           scope: "openid profile email User.Read",
@@ -88,4 +90,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "database",
   },
-});
+};
+
+const handler = NextAuth(authOptions);
+export default handler;
+
+// Export getServerSession with authOptions for App Router
+export const auth = () => getServerSession(authOptions);
+
+// Re-export signIn and signOut from the handler for server actions
+export const signIn = handler.signIn;
+export const signOut = handler.signOut;

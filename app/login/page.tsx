@@ -14,7 +14,7 @@ export default function LoginPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("microsoft-entra-id", { redirectTo: "/my-requests" });
+              await signIn("azure-ad", { redirectTo: "/my-requests" });
             }}
           >
             <Button type="submit" className="w-full" size="lg">
