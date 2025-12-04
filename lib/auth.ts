@@ -32,6 +32,8 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   providers: [
     AzureADProvider({
+      id: "microsoft-entra-id",
+      name: "Microsoft Entra ID",
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
       tenantId: process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!,

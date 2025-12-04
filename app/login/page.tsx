@@ -14,7 +14,7 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <Button
-            onClick={() => signIn("azure-ad", { callbackUrl: "/my-requests" })}
+            onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/my-requests" })}
             className="w-full"
             size="lg"
           >
