@@ -14,7 +14,7 @@ export default function LoginPage() {
           <form
             action={async () => {
               "use server";
-              redirect("/api/auth/signin?callbackUrl=/my-requests");
+              redirect("/api/auth/signin/azure-ad?callbackUrl=/my-requests");
             }}
           >
             <Button type="submit" className="w-full" size="lg">
