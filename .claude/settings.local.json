@@ -6,7 +6,9 @@
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
       "Bash(cat:*)",
-      "Bash(npx prisma db push:*)"
+      "Bash(npx prisma db push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(NODE_OPTIONS='--trace-deprecation' npm run dev:*)"
     ],
     "deny": [],
     "ask": []

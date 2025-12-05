@@ -1,18 +1,48 @@
-import nodemailer from "nodemailer";
+import { Client } from "@microsoft/microsoft-graph-client";
+import { ClientSecretCredential } from "@azure/identity";
 import { FacilityRequest, User, Severity } from "@prisma/client";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_SERVER_HOST,
-  port: parseInt(process.env.EMAIL_SERVER_PORT || "587"),
-  secure: process.env.EMAIL_SERVER_PORT === "465",
-  auth: {
-    user: process.env.EMAIL_SERVER_USER,
-    pass: process.env.EMAIL_SERVER_PASSWORD,
-  },
-});
-
 const ADMIN_EMAIL = "lehrick@yrefy.com";
+const FROM_EMAIL = "facilities@yrefy.com";
 const APP_URL = process.env.NEXTAUTH_URL || "https://facilities.it.yrefy";
+
+// Create the credential using the Entra ID app credentials
+console.log(`[EMAIL] Initializing Azure AD credentials...`);
+console.log(`[EMAIL] Tenant ID: ${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID ? '✓ Set' : '✗ Missing'}`);
+console.log(`[EMAIL] Client ID: ${process.env.AUTH_MICROSOFT_ENTRA_ID_ID ? '✓ Set' : '✗ Missing'}`);
+console.log(`[EMAIL] Client Secret: ${process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET ? '✓ Set' : '✗ Missing'}`);
+
+const credential = new ClientSecretCredential(
+  process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!,
+  process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
+  process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!
+);
+
+// Create Graph client
+const getGraphClient = () => {
+  return Client.initWithMiddleware({
+    authProvider: {
+      getAccessToken: async () => {
+        console.log(`[EMAIL] Requesting access token from Azure AD...`);
+        try {
+          const token = await credential.getToken(
+            "https://graph.microsoft.com/.default"
+          );
+          if (token?.token) {
+            console.log(`[EMAIL] ✓ Access token obtained successfully`);
+            console.log(`[EMAIL] Token expires at: ${token.expiresOnTimestamp}`);
+          } else {
+            console.error(`[EMAIL] ✗ No token received from Azure AD`);
+          }
+          return token?.token || "";
+        } catch (error) {
+          console.error(`[EMAIL] ✗ Failed to get access token:`, error);
+          throw error;
+        }
+      },
+    },
+  });
+};
 
 function getSeverityColor(severity: Severity): string {
   switch (severity) {
@@ -33,14 +63,29 @@ export async function sendNewRequestNotification(
   request: FacilityRequest,
   user: User
 ) {
+  console.log(`[EMAIL] Starting email notification for request ${request.id}`);
+  console.log(`[EMAIL] From: ${FROM_EMAIL}`);
+  console.log(`[EMAIL] To: ${ADMIN_EMAIL}`);
+  console.log(`[EMAIL] Request Details:`, {
+    id: request.id,
+    location: request.location,
+    severity: request.severity,
+    submittedBy: user.email,
+  });
+
   try {
+    console.log(`[EMAIL] Creating Graph client...`);
+    const client = getGraphClient();
+    console.log(`[EMAIL] Graph client created successfully`);
+
     const severityColor = getSeverityColor(request.severity);
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: ADMIN_EMAIL,
-      subject: `New Facility Request - ${request.severity} Priority`,
-      html: `
+    const message = {
+      message: {
+        subject: `New Facility Request - ${request.severity} Priority`,
+        body: {
+          contentType: "HTML",
+          content: `
         <!DOCTYPE html>
         <html>
           <head>
@@ -94,11 +139,32 @@ export async function sendNewRequestNotification(
           </body>
         </html>
       `,
-    });
+        },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: ADMIN_EMAIL,
+            },
+          },
+        ],
+      },
+      saveToSentItems: true,
+    };
 
-    console.log(`Email notification sent for request ${request.id}`);
+    console.log(`[EMAIL] Sending email via Graph API...`);
+    console.log(`[EMAIL] API endpoint: /users/${FROM_EMAIL}/sendMail`);
+
+    await client
+      .api(`/users/${FROM_EMAIL}/sendMail`)
+      .post(message);
+
+    console.log(`[EMAIL] ✓ Email notification sent successfully for request ${request.id}`);
   } catch (error) {
-    console.error("Failed to send email notification:", error);
+    console.error(`[EMAIL] ✗ Failed to send email notification:`, error);
+    if (error instanceof Error) {
+      console.error(`[EMAIL] Error message:`, error.message);
+      console.error(`[EMAIL] Error stack:`, error.stack);
+    }
     // Don't throw - we don't want to fail the request creation if email fails
   }
 }
@@ -108,12 +174,22 @@ export async function sendResponseNotification(
   user: User,
   responseMessage: string
 ) {
+  console.log(`[EMAIL] Starting response notification for request ${request.id}`);
+  console.log(`[EMAIL] From: ${FROM_EMAIL}`);
+  console.log(`[EMAIL] To: ${user.email}`);
+  console.log(`[EMAIL] Response message:`, responseMessage);
+
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: user.email,
-      subject: `Update on Your Facility Request - ${request.location}`,
-      html: `
+    console.log(`[EMAIL] Creating Graph client...`);
+    const client = getGraphClient();
+    console.log(`[EMAIL] Graph client created successfully`);
+
+    const message = {
+      message: {
+        subject: `Update on Your Facility Request - ${request.location}`,
+        body: {
+          contentType: "HTML",
+          content: `
         <!DOCTYPE html>
         <html>
           <head>
@@ -159,10 +235,31 @@ export async function sendResponseNotification(
           </body>
         </html>
       `,
-    });
+        },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: user.email,
+            },
+          },
+        ],
+      },
+      saveToSentItems: true,
+    };
 
-    console.log(`Response notification sent to ${user.email}`);
+    console.log(`[EMAIL] Sending response email via Graph API...`);
+    console.log(`[EMAIL] API endpoint: /users/${FROM_EMAIL}/sendMail`);
+
+    await client
+      .api(`/users/${FROM_EMAIL}/sendMail`)
+      .post(message);
+
+    console.log(`[EMAIL] ✓ Response notification sent successfully to ${user.email}`);
   } catch (error) {
-    console.error("Failed to send response notification:", error);
+    console.error(`[EMAIL] ✗ Failed to send response notification:`, error);
+    if (error instanceof Error) {
+      console.error(`[EMAIL] Error message:`, error.message);
+      console.error(`[EMAIL] Error stack:`, error.stack);
+    }
   }
 }

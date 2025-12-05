@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "NODE_OPTIONS='--no-deprecation' next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start -p 3006 -H 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@azure/identity": "^4.13.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@prisma/client": "^6.19.0",
     "@types/nodemailer": "^7.0.4",
     "next": "^15.5.7",
