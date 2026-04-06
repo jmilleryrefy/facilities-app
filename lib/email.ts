@@ -2,7 +2,7 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { ClientSecretCredential } from "@azure/identity";
 import { FacilityRequest, User, Severity } from "@prisma/client";
 
-const ADMIN_EMAIL = "lehrick@yrefy.com";
+const ADMIN_EMAILS = ["lehrick@yrefy.com", "jsanchez@yrefy.com"];
 const FROM_EMAIL = "facilities@yrefy.com";
 const APP_URL = process.env.NEXTAUTH_URL || "https://facilities.it.yrefy";
 
@@ -65,7 +65,7 @@ export async function sendNewRequestNotification(
 ) {
   console.log(`[EMAIL] Starting email notification for request ${request.id}`);
   console.log(`[EMAIL] From: ${FROM_EMAIL}`);
-  console.log(`[EMAIL] To: ${ADMIN_EMAIL}`);
+  console.log(`[EMAIL] To: ${ADMIN_EMAILS.join(", ")}`);
   console.log(`[EMAIL] Request Details:`, {
     id: request.id,
     location: request.location,
@@ -140,13 +140,11 @@ export async function sendNewRequestNotification(
         </html>
       `,
         },
-        toRecipients: [
-          {
-            emailAddress: {
-              address: ADMIN_EMAIL,
-            },
+        toRecipients: ADMIN_EMAILS.map((email) => ({
+          emailAddress: {
+            address: email,
           },
-        ],
+        })),
       },
       saveToSentItems: true,
     };

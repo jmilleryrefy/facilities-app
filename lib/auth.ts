@@ -10,7 +10,7 @@ import { Role } from "@prisma/client";
 const ALLOWED_DOMAINS = ["yrefy.com", "investyrefy.com", "invessio.com"];
 
 // Admin usernames (before @domain)
-const ADMIN_USERNAMES = ["lehrick", "jmiller", "crees", "kwilson"];
+const ADMIN_USERNAMES = ["lehrick", "jmiller", "crees", "kwilson", "jsanchez"];
 
 interface MicrosoftProfile {
   department?: string;
