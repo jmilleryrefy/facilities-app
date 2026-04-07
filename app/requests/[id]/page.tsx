@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -12,12 +11,8 @@ export default async function RequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Session is guaranteed by the layout; we still need it for ownership check
   const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
   const { id } = await params;
 
   const request = await prisma.facilityRequest.findUnique({
@@ -33,6 +28,15 @@ export default async function RequestDetailPage({
         },
       },
       responses: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
         orderBy: {
           createdAt: "asc",
         },
@@ -42,31 +46,28 @@ export default async function RequestDetailPage({
 
   if (!request) {
     return (
-      <DashboardLayout user={session.user}>
-        <div className="max-w-4xl mx-auto py-8 px-4">
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-gray-600 mb-4">Request not found</p>
-              <Link href="/my-requests">
-                <Button>Back to My Requests</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="text-center py-12">
+            <p className="text-gray-600 mb-4">Request not found</p>
+            <Link href="/my-requests">
+              <Button>Back to My Requests</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   // Check if user has permission to view this request
   if (
-    session.user.role !== "ADMIN" &&
-    request.userId !== session.user.id
+    session!.user.role !== "ADMIN" &&
+    request.userId !== session!.user.id
   ) {
     redirect("/my-requests");
   }
 
   return (
-    <DashboardLayout user={session.user}>
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="mb-6">
           <Link href="/my-requests">
@@ -142,7 +143,7 @@ export default async function RequestDetailPage({
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-semibold text-blue-600">
-                        Administrator Response #{index + 1}
+                        {response.author?.name || "Administrator"} — Response #{index + 1}
                       </span>
                       <span className="text-sm text-gray-600">
                         {new Date(response.createdAt).toLocaleString()}
@@ -158,6 +159,5 @@ export default async function RequestDetailPage({
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

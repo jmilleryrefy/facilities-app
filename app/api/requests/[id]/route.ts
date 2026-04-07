@@ -29,6 +29,15 @@ export async function GET(
           },
         },
         responses: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
           orderBy: {
             createdAt: "asc",
           },

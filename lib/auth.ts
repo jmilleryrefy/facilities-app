@@ -5,12 +5,7 @@ import AzureADProvider from "next-auth/providers/azure-ad";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "./prisma";
 import { Role } from "@prisma/client";
-
-// Allowed email domains
-const ALLOWED_DOMAINS = ["yrefy.com", "investyrefy.com", "invessio.com"];
-
-// Admin usernames (before @domain)
-const ADMIN_USERNAMES = ["lehrick", "jmiller", "crees", "kwilson", "jsanchez"];
+import { ALLOWED_DOMAINS, ADMIN_USERNAMES } from "./config";
 
 interface MicrosoftProfile {
   email?: string;

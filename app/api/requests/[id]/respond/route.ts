@@ -52,6 +52,7 @@ export async function POST(
       prisma.requestResponse.create({
         data: {
           requestId: id,
+          authorId: session.user.id,
           message,
         },
       }),
@@ -61,6 +62,15 @@ export async function POST(
         include: {
           user: true,
           responses: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
             orderBy: {
               createdAt: "asc",
             },

@@ -41,6 +41,7 @@ model User {
   accounts        Account[]
   sessions        Session[]
   facilityRequests FacilityRequest[]
+  responses        RequestResponse[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -114,9 +115,12 @@ model RequestResponse {
   id        String          @id @default(cuid())
   requestId String
   request   FacilityRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
   message   String          @db.Text
   createdAt DateTime        @default(now())
 
   @@index([requestId])
+  @@index([authorId])
   @@map("request_responses")
 }

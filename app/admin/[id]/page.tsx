@@ -16,9 +16,13 @@ import {
   RequestStatus,
 } from "@prisma/client";
 
+type ResponseWithAuthor = RequestResponse & {
+  author?: Pick<User, "id" | "name" | "email"> | null;
+};
+
 type RequestWithDetails = FacilityRequest & {
   user: Pick<User, "id" | "name" | "email" | "department" | "jobTitle">;
-  responses: RequestResponse[];
+  responses: ResponseWithAuthor[];
 };
 
 export default function AdminRespondPage() {
@@ -186,7 +190,7 @@ export default function AdminRespondPage() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-semibold text-blue-600">
-                      Response #{index + 1}
+                      {response.author?.name || "Administrator"} — Response #{index + 1}
                     </span>
                     <span className="text-sm text-gray-600">
                       {new Date(response.createdAt).toLocaleString()}

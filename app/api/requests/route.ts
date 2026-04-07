@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const status = searchParams.get("status");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
+    const skip = (page - 1) * limit;
 
     // Build query conditions
     const where: Prisma.FacilityRequestWhereInput = {};
@@ -32,31 +35,44 @@ export async function GET(request: NextRequest) {
       where.status = status as Prisma.EnumRequestStatusFilter;
     }
 
-    const requests = await prisma.facilityRequest.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            department: true,
-            jobTitle: true,
+    const [requests, total] = await Promise.all([
+      prisma.facilityRequest.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              department: true,
+              jobTitle: true,
+            },
+          },
+          responses: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
           },
         },
-        responses: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 1,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      orderBy: {
-        createdAt: "desc",
+        skip,
+        take: limit,
+      }),
+      prisma.facilityRequest.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: requests,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
-
-    return NextResponse.json(requests);
   } catch (error) {
     console.error("Error fetching requests:", error);
     return NextResponse.json(
