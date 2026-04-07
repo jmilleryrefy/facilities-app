@@ -54,6 +54,7 @@ export async function POST(
           requestId: id,
           authorId: session.user.id,
           message,
+          isAdminResponse: true,
         },
       }),
       prisma.facilityRequest.update({
@@ -78,6 +79,15 @@ export async function POST(
         },
       }),
     ]);
+
+    // Create in-app notification for the request owner
+    await prisma.notification.create({
+      data: {
+        userId: existingRequest.userId,
+        requestId: id,
+        message: `An administrator responded to your request for "${existingRequest.location}"`,
+      },
+    }).catch((err) => console.error("Failed to create notification:", err));
 
     // Send email notification to user (non-blocking)
     sendResponseNotification(

@@ -39,9 +39,9 @@ model User {
   department      String?
   jobTitle        String?
   accounts        Account[]
-  sessions        Session[]
   facilityRequests FacilityRequest[]
   responses        RequestResponse[]
+  notifications    Notification[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -72,19 +72,6 @@ model Account {
   @@map("accounts")
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("sessions")
-}
-
 model VerificationToken {
   identifier String
   token      String
@@ -103,6 +90,7 @@ model FacilityRequest {
   severity    Severity          @default(MEDIUM)
   status      RequestStatus     @default(PENDING)
   responses   RequestResponse[]
+  attachments Attachment[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -112,16 +100,45 @@ model FacilityRequest {
   @@map("facility_requests")
 }
 
-model RequestResponse {
+model Attachment {
   id        String          @id @default(cuid())
   requestId String
   request   FacilityRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  authorId  String?
-  author    User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  message   String          @db.Text
+  fileName  String
+  fileType  String
+  fileSize  Int
+  fileData  Bytes           @db.LongBlob
   createdAt DateTime        @default(now())
+
+  @@index([requestId])
+  @@map("attachments")
+}
+
+model RequestResponse {
+  id             String          @id @default(cuid())
+  requestId      String
+  request        FacilityRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId       String?
+  author         User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  message        String          @db.Text
+  isAdminResponse Boolean        @default(true)
+  createdAt      DateTime        @default(now())
 
   @@index([requestId])
   @@index([authorId])
   @@map("request_responses")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([requestId])
+  @@map("notifications")
 }

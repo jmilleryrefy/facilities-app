@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { RequestStatus } from "@prisma/client";
+import { RequestStatus, Severity } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +42,18 @@ export async function GET(
             createdAt: "asc",
           },
         },
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            fileType: true,
+            fileSize: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
     });
 
@@ -77,27 +89,74 @@ export async function PATCH(
   try {
     const session = await auth();
 
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, location, description, severity } = body;
 
-    // Validation
-    if (status && !Object.values(RequestStatus).includes(status)) {
+    // Fetch the existing request
+    const existingRequest = await prisma.facilityRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existingRequest) {
       return NextResponse.json(
-        { error: "Invalid status value" },
-        { status: 400 }
+        { error: "Request not found" },
+        { status: 404 }
       );
     }
 
+    const isAdmin = session.user.role === "ADMIN";
+    const isOwner = existingRequest.userId === session.user.id;
+
+    // Admin status update
+    if (status) {
+      if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (!Object.values(RequestStatus).includes(status)) {
+        return NextResponse.json(
+          { error: "Invalid status value" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // User edit: only owner can edit, and only if PENDING
+    if (location || description || severity) {
+      if (!isOwner && !isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (existingRequest.status !== "PENDING" && !isAdmin) {
+        return NextResponse.json(
+          { error: "Can only edit requests that are still pending" },
+          { status: 400 }
+        );
+      }
+
+      if (severity && !Object.values(Severity).includes(severity)) {
+        return NextResponse.json(
+          { error: "Invalid severity value" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Build update data
+    const updateData: Record<string, unknown> = {};
+    if (status) updateData.status = status;
+    if (location) updateData.location = location;
+    if (description) updateData.description = description;
+    if (severity) updateData.severity = severity;
+
     const facilityRequest = await prisma.facilityRequest.update({
       where: { id },
-      data: {
-        status,
-      },
+      data: updateData,
       include: {
         user: true,
         responses: {

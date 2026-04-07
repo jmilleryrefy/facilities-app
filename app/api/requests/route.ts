@@ -126,6 +126,24 @@ export async function POST(request: NextRequest) {
       (error) => console.error("Failed to send notification:", error)
     );
 
+    // Create in-app notifications for all admins
+    prisma.user
+      .findMany({ where: { role: "ADMIN" }, select: { id: true } })
+      .then((admins) => {
+        if (admins.length > 0) {
+          return prisma.notification.createMany({
+            data: admins.map((admin) => ({
+              userId: admin.id,
+              requestId: facilityRequest.id,
+              message: `New ${facilityRequest.severity.toLowerCase()} priority request from ${facilityRequest.user.name || facilityRequest.user.email} at "${facilityRequest.location}"`,
+            })),
+          });
+        }
+      })
+      .catch((error) =>
+        console.error("Failed to create admin notifications:", error)
+      );
+
     return NextResponse.json(facilityRequest, { status: 201 });
   } catch (error) {
     console.error("Error creating request:", error);

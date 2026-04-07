@@ -15,14 +15,25 @@ import {
   RequestResponse,
   RequestStatus,
 } from "@prisma/client";
+import AttachmentList from "@/components/AttachmentList";
+
+type AttachmentInfo = {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  createdAt: string;
+};
 
 type ResponseWithAuthor = RequestResponse & {
   author?: Pick<User, "id" | "name" | "email"> | null;
+  isAdminResponse?: boolean;
 };
 
 type RequestWithDetails = FacilityRequest & {
   user: Pick<User, "id" | "name" | "email" | "department" | "jobTitle">;
   responses: ResponseWithAuthor[];
+  attachments: AttachmentInfo[];
 };
 
 export default function AdminRespondPage() {
@@ -159,6 +170,12 @@ export default function AdminRespondPage() {
               </p>
             </div>
 
+            {request.attachments && request.attachments.length > 0 && (
+              <div className="border-t pt-4">
+                <AttachmentList attachments={request.attachments} />
+              </div>
+            )}
+
             <div className="border-t pt-4">
               <h3 className="font-semibold text-gray-900 mb-2">Submitted By</h3>
               <div className="text-sm text-gray-700">
@@ -179,19 +196,40 @@ export default function AdminRespondPage() {
       {request.responses.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Previous Responses</CardTitle>
+            <CardTitle>Conversation</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {request.responses.map((response, index) => (
                 <div
                   key={response.id}
-                  className="border-l-4 border-blue-500 pl-4 py-2"
+                  className={`border-l-4 pl-4 py-2 ${
+                    response.isAdminResponse
+                      ? "border-blue-500"
+                      : "border-primary"
+                  }`}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-semibold text-blue-600">
-                      {response.author?.name || "Administrator"} — Response #{index + 1}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-semibold ${
+                          response.isAdminResponse
+                            ? "text-blue-600"
+                            : "text-primary-dark"
+                        }`}
+                      >
+                        {response.author?.name || "Unknown"}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          response.isAdminResponse
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-primary-bg text-primary-dark"
+                        }`}
+                      >
+                        {response.isAdminResponse ? "Admin" : "Requester"}
+                      </span>
+                    </div>
                     <span className="text-sm text-gray-600">
                       {new Date(response.createdAt).toLocaleString()}
                     </span>

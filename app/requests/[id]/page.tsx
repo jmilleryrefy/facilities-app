@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import AttachmentList from "@/components/AttachmentList";
+import CommentForm from "@/components/CommentForm";
+import RequestActions from "@/components/RequestActions";
 
 export default async function RequestDetailPage({
   params,
@@ -36,6 +39,18 @@ export default async function RequestDetailPage({
               email: true,
             },
           },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      attachments: {
+        select: {
+          id: true,
+          fileName: true,
+          fileType: true,
+          fileSize: true,
+          createdAt: true,
         },
         orderBy: {
           createdAt: "asc",
@@ -94,6 +109,13 @@ export default async function RequestDetailPage({
                 </div>
               </div>
             </div>
+            <div className="mt-3">
+              <RequestActions
+                requestId={request.id}
+                requestStatus={request.status}
+                isOwner={request.userId === session!.user.id}
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -105,6 +127,17 @@ export default async function RequestDetailPage({
                   {request.description}
                 </p>
               </div>
+
+              {request.attachments && request.attachments.length > 0 && (
+                <div className="border-t pt-4">
+                  <AttachmentList
+                    attachments={request.attachments.map((a: { id: string; fileName: string; fileType: string; fileSize: number; createdAt: Date }) => ({
+                      ...a,
+                      createdAt: a.createdAt.toISOString(),
+                    }))}
+                  />
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-gray-900 mb-2">
@@ -127,24 +160,45 @@ export default async function RequestDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Response Timeline</CardTitle>
+            <CardTitle>Conversation</CardTitle>
           </CardHeader>
           <CardContent>
             {request.responses.length === 0 ? (
               <p className="text-gray-600 text-center py-8">
-                No responses yet. You will be notified when an administrator responds.
+                No messages yet. You will be notified when an administrator responds.
               </p>
             ) : (
-              <div className="space-y-4">
-                {request.responses.map((response, index) => (
+              <div className="space-y-4 mb-6">
+                {request.responses.map((response: { id: string; isAdminResponse?: boolean; author?: { id: string; name: string | null; email: string } | null; createdAt: Date; message: string }, index: number) => (
                   <div
                     key={response.id}
-                    className="border-l-4 border-blue-500 pl-4 py-2"
+                    className={`border-l-4 pl-4 py-2 ${
+                      response.isAdminResponse
+                        ? "border-blue-500"
+                        : "border-primary"
+                    }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-semibold text-blue-600">
-                        {response.author?.name || "Administrator"} — Response #{index + 1}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-semibold ${
+                            response.isAdminResponse
+                              ? "text-blue-600"
+                              : "text-primary-dark"
+                          }`}
+                        >
+                          {response.author?.name || "Unknown"}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            response.isAdminResponse
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-primary-bg text-primary-dark"
+                          }`}
+                        >
+                          {response.isAdminResponse ? "Admin" : "Requester"}
+                        </span>
+                      </div>
                       <span className="text-sm text-gray-600">
                         {new Date(response.createdAt).toLocaleString()}
                       </span>
@@ -156,6 +210,13 @@ export default async function RequestDetailPage({
                 ))}
               </div>
             )}
+
+            <div className="border-t pt-4">
+              <CommentForm
+                requestId={request.id}
+                requestStatus={request.status}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

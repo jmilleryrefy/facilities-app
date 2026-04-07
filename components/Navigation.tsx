@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Role } from "@prisma/client";
+import NotificationBell from "./NotificationBell";
 
 interface NavigationProps {
   user: {
@@ -60,6 +61,7 @@ export default function Navigation({ user, onSignOut }: NavigationProps) {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <NotificationBell />
             <div className="text-right">
               <div className="text-sm font-medium">{user.name}</div>
               <div className="text-xs opacity-90">{user.email}</div>
