@@ -6,7 +6,8 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { FacilityRequest, User, RequestResponse, RequestStatus, RequestCategory } from "@prisma/client";
+import { FacilityRequest, User, RequestResponse, RequestStatus } from "@prisma/client";
+import { categoryLabels } from "@/components/ui/Badge";
 
 type AdminUser = {
   id: string;
@@ -26,19 +27,6 @@ interface PaginationInfo {
   total: number;
   totalPages: number;
 }
-
-const categoryLabels: Record<string, string> = {
-  PLUMBING: "Plumbing",
-  ELECTRICAL: "Electrical",
-  HVAC: "HVAC",
-  CLEANING: "Cleaning",
-  SECURITY: "Security",
-  FURNITURE: "Furniture",
-  IT_EQUIPMENT: "IT Equipment",
-  STRUCTURAL: "Structural",
-  LANDSCAPING: "Landscaping",
-  OTHER: "Other",
-};
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -82,12 +70,7 @@ export default function AdminDashboardPage() {
           params.set("category", categoryFilter);
         }
         if (assigneeFilter !== "ALL") {
-          if (assigneeFilter === "UNASSIGNED") {
-            // The API doesn't have an "unassigned" filter built-in;
-            // we'll filter client-side for unassigned
-          } else {
-            params.set("assigneeId", assigneeFilter);
-          }
+          params.set("assigneeId", assigneeFilter);
         }
         const response = await fetch(`/api/requests?${params}`);
         if (!response.ok) {
@@ -98,12 +81,7 @@ export default function AdminDashboardPage() {
           throw new Error("Failed to fetch requests");
         }
         const result = await response.json();
-        let data = result.data;
-        // Client-side filter for unassigned
-        if (assigneeFilter === "UNASSIGNED") {
-          data = data.filter((r: RequestWithDetails) => !r.assigneeId);
-        }
-        setRequests(data);
+        setRequests(result.data);
         setPagination(result.pagination);
       } catch (error) {
         console.error("Error fetching requests:", error);

@@ -82,7 +82,7 @@ export async function POST(
     ]);
 
     // Audit log: admin responded
-    logAudit({
+    await logAudit({
       requestId: id,
       actorId: session.user.id,
       action: "responded",
@@ -90,7 +90,7 @@ export async function POST(
 
     // Audit log: status change if applicable
     if (status && status !== existingRequest.status) {
-      logAudit({
+      await logAudit({
         requestId: id,
         actorId: session.user.id,
         action: "updated",

@@ -33,7 +33,7 @@ function formatFieldValue(field: string | null, value: string | null): string {
   if (field === "category") {
     return categoryLabels[value as RequestCategory] || value;
   }
-  if (field === "assigneeId") {
+  if (field === "assignee" || field === "assigneeId") {
     return value || "unassigned";
   }
   // For long text fields, truncate

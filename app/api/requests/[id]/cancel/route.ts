@@ -49,7 +49,7 @@ export async function POST(
     });
 
     // Audit log: request cancelled
-    logAudit({
+    await logAudit({
       requestId: id,
       actorId: session.user.id,
       action: "cancelled",

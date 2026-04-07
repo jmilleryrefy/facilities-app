@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by assignee if provided
-    if (assigneeId) {
+    if (assigneeId === "UNASSIGNED") {
+      where.assigneeId = null;
+    } else if (assigneeId) {
       where.assigneeId = assigneeId;
     }
 
@@ -150,7 +152,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Audit log
-    logAudit({
+    await logAudit({
       requestId: facilityRequest.id,
       actorId: session.user.id,
       action: "created",

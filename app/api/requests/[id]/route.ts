@@ -115,6 +115,11 @@ export async function PATCH(
     // Fetch the existing request
     const existingRequest = await prisma.facilityRequest.findUnique({
       where: { id },
+      include: {
+        assignee: {
+          select: { name: true, email: true },
+        },
+      },
     });
 
     if (!existingRequest) {
@@ -260,12 +265,18 @@ export async function PATCH(
       newValues.category = body.category;
     }
     if (hasAssigneeId && (body.assigneeId || null) !== existingRequest.assigneeId) {
-      oldValues.assigneeId = existingRequest.assigneeId;
-      newValues.assigneeId = body.assigneeId || null;
+      const oldAssigneeName = existingRequest.assignee
+        ? (existingRequest.assignee.name || existingRequest.assignee.email)
+        : null;
+      const newAssigneeName = facilityRequest.assignee
+        ? (facilityRequest.assignee.name || facilityRequest.assignee.email)
+        : null;
+      oldValues.assignee = oldAssigneeName;
+      newValues.assignee = newAssigneeName;
     }
 
     if (Object.keys(newValues).length > 0) {
-      logFieldChanges(id, session.user.id, "updated", oldValues, newValues);
+      await logFieldChanges(id, session.user.id, "updated", oldValues, newValues);
     }
 
     return NextResponse.json(facilityRequest);

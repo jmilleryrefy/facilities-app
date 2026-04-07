@@ -3,20 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
 import Input from "@/components/ui/Input";
-import { RequestStatus, RequestCategory } from "@prisma/client";
-
-const categoryLabels: Record<string, string> = {
-  PLUMBING: "Plumbing",
-  ELECTRICAL: "Electrical",
-  HVAC: "HVAC",
-  CLEANING: "Cleaning",
-  SECURITY: "Security",
-  FURNITURE: "Furniture",
-  IT_EQUIPMENT: "IT Equipment",
-  STRUCTURAL: "Structural",
-  LANDSCAPING: "Landscaping",
-  OTHER: "Other",
-};
+import { categoryLabels } from "@/components/ui/Badge";
+import { RequestStatus } from "@prisma/client";
 
 export default function RequestFilters() {
   const router = useRouter();
