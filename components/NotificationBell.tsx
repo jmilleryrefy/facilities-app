@@ -75,17 +75,22 @@ export default function NotificationBell() {
   };
 
   const markAsRead = async (id: string) => {
+    // Check local state to avoid double-decrementing
+    const notification = notifications.find((n) => n.id === id);
+    if (!notification || notification.read) return;
+
+    // Optimistically update local state first
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+
     try {
       await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: [id] }),
       });
-
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }

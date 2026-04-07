@@ -95,7 +95,12 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, location, description, severity } = body;
+
+    const hasStatus = "status" in body;
+    const hasLocation = "location" in body;
+    const hasDescription = "description" in body;
+    const hasSeverity = "severity" in body;
+    const hasEditFields = hasLocation || hasDescription || hasSeverity;
 
     // Fetch the existing request
     const existingRequest = await prisma.facilityRequest.findUnique({
@@ -113,12 +118,12 @@ export async function PATCH(
     const isOwner = existingRequest.userId === session.user.id;
 
     // Admin status update
-    if (status) {
+    if (hasStatus) {
       if (!isAdmin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      if (!Object.values(RequestStatus).includes(status)) {
+      if (!Object.values(RequestStatus).includes(body.status)) {
         return NextResponse.json(
           { error: "Invalid status value" },
           { status: 400 }
@@ -127,7 +132,7 @@ export async function PATCH(
     }
 
     // User edit: only owner can edit, and only if PENDING
-    if (location || description || severity) {
+    if (hasEditFields) {
       if (!isOwner && !isAdmin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -139,7 +144,21 @@ export async function PATCH(
         );
       }
 
-      if (severity && !Object.values(Severity).includes(severity)) {
+      if (hasLocation && !body.location) {
+        return NextResponse.json(
+          { error: "Location cannot be empty" },
+          { status: 400 }
+        );
+      }
+
+      if (hasDescription && !body.description) {
+        return NextResponse.json(
+          { error: "Description cannot be empty" },
+          { status: 400 }
+        );
+      }
+
+      if (hasSeverity && !Object.values(Severity).includes(body.severity)) {
         return NextResponse.json(
           { error: "Invalid severity value" },
           { status: 400 }
@@ -149,10 +168,10 @@ export async function PATCH(
 
     // Build update data
     const updateData: Record<string, unknown> = {};
-    if (status) updateData.status = status;
-    if (location) updateData.location = location;
-    if (description) updateData.description = description;
-    if (severity) updateData.severity = severity;
+    if (hasStatus) updateData.status = body.status;
+    if (hasLocation) updateData.location = body.location;
+    if (hasDescription) updateData.description = body.description;
+    if (hasSeverity) updateData.severity = body.severity;
 
     const facilityRequest = await prisma.facilityRequest.update({
       where: { id },

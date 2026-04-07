@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_ATTACHMENTS_PER_REQUEST = 10;
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -53,8 +54,22 @@ export async function POST(
       );
     }
 
-    // Validate and process files
-    const attachments = [];
+    // Check attachment count limit
+    const existingCount = await prisma.attachment.count({
+      where: { requestId: id },
+    });
+
+    if (existingCount + files.length > MAX_ATTACHMENTS_PER_REQUEST) {
+      return NextResponse.json(
+        {
+          error: `Cannot exceed ${MAX_ATTACHMENTS_PER_REQUEST} attachments per request. Currently ${existingCount}, trying to add ${files.length}.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate ALL files before inserting any
+    const fileBuffers: { name: string; type: string; size: number; data: Uint8Array<ArrayBuffer> }[] = [];
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json(
@@ -72,26 +87,35 @@ export async function POST(
         );
       }
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-
-      const attachment = await prisma.attachment.create({
-        data: {
-          requestId: id,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          fileData: buffer,
-        },
-      });
-
-      attachments.push({
-        id: attachment.id,
-        fileName: attachment.fileName,
-        fileType: attachment.fileType,
-        fileSize: attachment.fileSize,
-        createdAt: attachment.createdAt,
+      fileBuffers.push({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>,
       });
     }
+
+    // Insert all attachments in a transaction
+    const attachments = await prisma.$transaction(
+      fileBuffers.map((file) =>
+        prisma.attachment.create({
+          data: {
+            requestId: id,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            fileData: file.data,
+          },
+          select: {
+            id: true,
+            fileName: true,
+            fileType: true,
+            fileSize: true,
+            createdAt: true,
+          },
+        })
+      )
+    );
 
     return NextResponse.json({ attachments }, { status: 201 });
   } catch (error) {

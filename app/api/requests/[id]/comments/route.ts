@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_NOTIFICATION_EMAILS } from "@/lib/config";
 
 export async function POST(
   request: NextRequest,
