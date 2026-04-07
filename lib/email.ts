@@ -16,11 +16,20 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, "&#039;");
 }
 
-const credential = new ClientSecretCredential(
-  process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!,
-  process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
-  process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!
-);
+// Lazily initialized credential — avoids crashing at build time when env vars
+// are not available (e.g. during `next build` page-data collection).
+let _credential: ClientSecretCredential | null = null;
+
+function getCredential(): ClientSecretCredential {
+  if (!_credential) {
+    _credential = new ClientSecretCredential(
+      process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID!,
+      process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
+      process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!
+    );
+  }
+  return _credential;
+}
 
 // Create Graph client
 const getGraphClient = () => {
@@ -28,7 +37,7 @@ const getGraphClient = () => {
     authProvider: {
       getAccessToken: async () => {
         try {
-          const token = await credential.getToken(
+          const token = await getCredential().getToken(
             "https://graph.microsoft.com/.default"
           );
           if (!token?.token) {
