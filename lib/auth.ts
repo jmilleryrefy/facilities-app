@@ -46,8 +46,9 @@ export const authOptions: NextAuthOptions = {
       },
       profile(profile) {
         // Use the email from the profile to ensure we create/find the correct user
-        const email =
-          profile.email || profile.preferred_username || profile.mail;
+        const email = (
+          profile.email || profile.preferred_username || profile.mail || ""
+        ).toLowerCase();
         return {
           id: profile.sub,
           name: profile.name,
@@ -72,92 +73,103 @@ export const authOptions: NextAuthOptions = {
 
       // Validate email domain
       if (!actualEmail || !isAllowedDomain(actualEmail)) {
+        console.warn(
+          `[AUTH] Sign-in rejected: ${actualEmail || "(no email)"} — domain not allowed at ${new Date().toISOString()}`
+        );
         return false;
       }
 
       if (account && profile) {
-        // Check if there's an existing account link that points to a different user (email mismatch)
-        const existingAccount = await prisma.account.findUnique({
-          where: {
-            provider_providerAccountId: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
+        await prisma.$transaction(async (tx) => {
+          // Check if there's an existing account link that points to a different user (email mismatch)
+          const existingAccount = await tx.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
             },
-          },
-          include: { user: true },
-        });
-
-        if (
-          existingAccount &&
-          existingAccount.user.email?.toLowerCase() !==
-            actualEmail.toLowerCase()
-        ) {
-          // The account link points to a different user than who is signing in.
-          // Remove the stale account link so the adapter can properly create/link a new user.
-          await prisma.account.delete({
-            where: { id: existingAccount.id },
+            include: { user: true },
           });
-        }
 
-        // Ensure a user record exists for this email
-        let dbUser = await prisma.user.findUnique({
-          where: { email: actualEmail },
-        });
+          let needsAccountLink = !existingAccount;
 
-        if (!dbUser) {
-          dbUser = await prisma.user.create({
+          if (
+            existingAccount &&
+            existingAccount.user.email?.toLowerCase() !==
+              actualEmail.toLowerCase()
+          ) {
+            // The account link points to a different user than who is signing in.
+            // Remove the stale account link so the adapter can properly create/link a new user.
+            await tx.account.delete({
+              where: { id: existingAccount.id },
+            });
+            needsAccountLink = true;
+
+            console.log(
+              `[AUTH] Account link mismatch: provider account was linked to ${existingAccount.user.email}, re-linking to ${actualEmail}`
+            );
+          }
+
+          // Ensure a user record exists for this email
+          let dbUser = await tx.user.findUnique({
+            where: { email: actualEmail },
+          });
+
+          if (!dbUser) {
+            dbUser = await tx.user.create({
+              data: {
+                email: actualEmail,
+                name: user.name || undefined,
+                image: user.image || undefined,
+                role: isAdmin(actualEmail) ? Role.ADMIN : Role.USER,
+                department: msProfile.department,
+                jobTitle: msProfile.jobTitle,
+              },
+            });
+
+            console.log(
+              `[AUTH] New user created: ${actualEmail} (role: ${dbUser.role})`
+            );
+          }
+
+          if (needsAccountLink) {
+            // Create the account link for this user
+            await tx.account.create({
+              data: {
+                userId: dbUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state as string | undefined,
+              },
+            });
+          }
+
+          // Update user profile info
+          await tx.user.updateMany({
+            where: { email: actualEmail },
             data: {
-              email: actualEmail,
               name: user.name || undefined,
               image: user.image || undefined,
-              role: isAdmin(actualEmail) ? Role.ADMIN : Role.USER,
               department: msProfile.department,
               jobTitle: msProfile.jobTitle,
+              role: isAdmin(actualEmail) ? Role.ADMIN : Role.USER,
             },
           });
-        }
-
-        // Check if the account is now linked to this user
-        const currentAccountLink = await prisma.account.findUnique({
-          where: {
-            provider_providerAccountId: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-            },
-          },
-        });
-
-        if (!currentAccountLink) {
-          // Create the account link for this user
-          await prisma.account.create({
-            data: {
-              userId: dbUser.id,
-              type: account.type,
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-              refresh_token: account.refresh_token,
-              access_token: account.access_token,
-              expires_at: account.expires_at,
-              token_type: account.token_type,
-              scope: account.scope,
-              id_token: account.id_token,
-              session_state: account.session_state as string | undefined,
-            },
-          });
-        }
-
-        // Update user profile info
-        await prisma.user.updateMany({
-          where: { email: actualEmail },
-          data: {
-            name: user.name || undefined,
-            image: user.image || undefined,
-            department: msProfile.department,
-            jobTitle: msProfile.jobTitle,
-            role: isAdmin(actualEmail) ? Role.ADMIN : Role.USER,
-          },
         });
       }
+
+      const role = isAdmin(actualEmail) ? "ADMIN" : "USER";
+      console.log(
+        `[AUTH] Sign-in: ${actualEmail} (role: ${role}) at ${new Date().toISOString()}`
+      );
 
       return true;
     },
