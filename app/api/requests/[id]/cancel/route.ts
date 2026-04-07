@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(
   request: NextRequest,
@@ -45,6 +46,16 @@ export async function POST(
     const updatedRequest = await prisma.facilityRequest.update({
       where: { id },
       data: { status: "CLOSED" },
+    });
+
+    // Audit log: request cancelled
+    logAudit({
+      requestId: id,
+      actorId: session.user.id,
+      action: "cancelled",
+      field: "status",
+      oldValue: existingRequest.status,
+      newValue: "CLOSED",
     });
 
     return NextResponse.json(updatedRequest);

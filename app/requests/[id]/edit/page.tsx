@@ -9,7 +9,7 @@ import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Severity } from "@prisma/client";
+import { Severity, RequestCategory } from "@prisma/client";
 
 export default function EditRequestPage() {
   const router = useRouter();
@@ -23,6 +23,7 @@ export default function EditRequestPage() {
     location: "",
     description: "",
     severity: Severity.MEDIUM as Severity,
+    category: RequestCategory.OTHER as RequestCategory,
   });
 
   const fetchRequest = useCallback(async () => {
@@ -53,6 +54,7 @@ export default function EditRequestPage() {
         location: data.location,
         description: data.description,
         severity: data.severity,
+        category: data.category || RequestCategory.OTHER,
       });
       setCanEdit(true);
     } catch (error) {
@@ -178,6 +180,29 @@ export default function EditRequestPage() {
                   value: Severity.CRITICAL,
                   label: "Critical - Safety hazard or critical system failure",
                 },
+              ]}
+            />
+
+            <Select
+              label="Category"
+              value={formData.category}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  category: e.target.value as RequestCategory,
+                })
+              }
+              options={[
+                { value: RequestCategory.PLUMBING, label: "Plumbing" },
+                { value: RequestCategory.ELECTRICAL, label: "Electrical" },
+                { value: RequestCategory.HVAC, label: "HVAC" },
+                { value: RequestCategory.CLEANING, label: "Cleaning" },
+                { value: RequestCategory.SECURITY, label: "Security" },
+                { value: RequestCategory.FURNITURE, label: "Furniture" },
+                { value: RequestCategory.IT_EQUIPMENT, label: "IT Equipment" },
+                { value: RequestCategory.STRUCTURAL, label: "Structural" },
+                { value: RequestCategory.LANDSCAPING, label: "Landscaping" },
+                { value: RequestCategory.OTHER, label: "Other" },
               ]}
             />
 

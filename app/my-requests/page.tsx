@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import RequestFilters from "@/components/RequestFilters";
-import { Prisma, RequestStatus, Severity } from "@prisma/client";
+import { Prisma, RequestStatus, RequestCategory, Severity } from "@prisma/client";
 
 const PAGE_SIZE = 20;
 
@@ -23,6 +23,7 @@ export default async function MyRequestsPage({
   searchParams: Promise<{
     page?: string;
     status?: string;
+    category?: string;
     search?: string;
     sort?: string;
   }>;
@@ -33,6 +34,7 @@ export default async function MyRequestsPage({
   const {
     page: pageParam,
     status: statusParam,
+    category: categoryParam,
     search: searchParam,
     sort: sortParam,
   } = await searchParams;
@@ -50,6 +52,15 @@ export default async function MyRequestsPage({
     Object.values(RequestStatus).includes(statusParam as RequestStatus)
   ) {
     where.status = statusParam as RequestStatus;
+  }
+
+  // Category filter
+  if (
+    categoryParam &&
+    categoryParam !== "ALL" &&
+    Object.values(RequestCategory).includes(categoryParam as RequestCategory)
+  ) {
+    where.category = categoryParam as RequestCategory;
   }
 
   // Search filter
@@ -102,6 +113,7 @@ export default async function MyRequestsPage({
     const params = new URLSearchParams();
     params.set("page", String(p));
     if (statusParam && statusParam !== "ALL") params.set("status", statusParam);
+    if (categoryParam && categoryParam !== "ALL") params.set("category", categoryParam);
     if (searchParam) params.set("search", searchParam);
     if (sortParam && sortParam !== "newest") params.set("sort", sortParam);
     return `/my-requests?${params.toString()}`;
@@ -121,7 +133,7 @@ export default async function MyRequestsPage({
       {requests.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            {searchParam || (statusParam && statusParam !== "ALL") ? (
+            {searchParam || (statusParam && statusParam !== "ALL") || (categoryParam && categoryParam !== "ALL") ? (
               <p className="text-gray-600">
                 No requests match your filters.{" "}
                 <Link
@@ -156,10 +168,11 @@ export default async function MyRequestsPage({
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {request.location}
                         </h3>
+                        <Badge variant="category" category={request.category} />
                         <Badge variant="severity" severity={request.severity} />
                         <Badge variant="status" status={request.status} />
                       </div>

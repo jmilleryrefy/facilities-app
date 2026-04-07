@@ -8,7 +8,7 @@ import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Severity } from "@prisma/client";
+import { Severity, RequestCategory } from "@prisma/client";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -34,10 +34,12 @@ export default function NewRequestPage() {
     location: string;
     description: string;
     severity: Severity;
+    category: RequestCategory;
   }>({
     location: "",
     description: "",
     severity: Severity.MEDIUM,
+    category: RequestCategory.OTHER,
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,6 +180,29 @@ export default function NewRequestPage() {
                   value: Severity.CRITICAL,
                   label: "Critical - Safety hazard or critical system failure",
                 },
+              ]}
+            />
+
+            <Select
+              label="Category"
+              value={formData.category}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  category: e.target.value as RequestCategory,
+                })
+              }
+              options={[
+                { value: RequestCategory.PLUMBING, label: "Plumbing" },
+                { value: RequestCategory.ELECTRICAL, label: "Electrical" },
+                { value: RequestCategory.HVAC, label: "HVAC" },
+                { value: RequestCategory.CLEANING, label: "Cleaning" },
+                { value: RequestCategory.SECURITY, label: "Security" },
+                { value: RequestCategory.FURNITURE, label: "Furniture" },
+                { value: RequestCategory.IT_EQUIPMENT, label: "IT Equipment" },
+                { value: RequestCategory.STRUCTURAL, label: "Structural" },
+                { value: RequestCategory.LANDSCAPING, label: "Landscaping" },
+                { value: RequestCategory.OTHER, label: "Other" },
               ]}
             />
 

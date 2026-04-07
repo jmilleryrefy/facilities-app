@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { RequestStatus, Severity } from "@prisma/client";
+import { RequestStatus, Severity, RequestCategory } from "@prisma/client";
+import { logAudit, logFieldChanges } from "@/lib/audit";
 
 export async function GET(
   request: NextRequest,
@@ -26,6 +27,13 @@ export async function GET(
             email: true,
             department: true,
             jobTitle: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
         responses: {
@@ -100,7 +108,9 @@ export async function PATCH(
     const hasLocation = "location" in body;
     const hasDescription = "description" in body;
     const hasSeverity = "severity" in body;
-    const hasEditFields = hasLocation || hasDescription || hasSeverity;
+    const hasCategory = "category" in body;
+    const hasAssigneeId = "assigneeId" in body;
+    const hasEditFields = hasLocation || hasDescription || hasSeverity || hasCategory;
 
     // Fetch the existing request
     const existingRequest = await prisma.facilityRequest.findUnique({
@@ -166,18 +176,57 @@ export async function PATCH(
       }
     }
 
+    // Validate category if provided
+    if (hasCategory && body.category !== null && !Object.values(RequestCategory).includes(body.category)) {
+      return NextResponse.json(
+        { error: "Invalid category value" },
+        { status: 400 }
+      );
+    }
+
+    // Only admins can assign requests
+    if (hasAssigneeId && !isAdmin) {
+      return NextResponse.json(
+        { error: "Only admins can assign requests" },
+        { status: 403 }
+      );
+    }
+
+    // If assigning, verify the assignee exists and is an admin
+    if (hasAssigneeId && body.assigneeId) {
+      const assignee = await prisma.user.findUnique({
+        where: { id: body.assigneeId },
+        select: { id: true, role: true },
+      });
+      if (!assignee || assignee.role !== "ADMIN") {
+        return NextResponse.json(
+          { error: "Assignee must be a valid admin user" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Build update data
     const updateData: Record<string, unknown> = {};
     if (hasStatus) updateData.status = body.status;
     if (hasLocation) updateData.location = body.location;
     if (hasDescription) updateData.description = body.description;
     if (hasSeverity) updateData.severity = body.severity;
+    if (hasCategory) updateData.category = body.category;
+    if (hasAssigneeId) updateData.assigneeId = body.assigneeId || null;
 
     const facilityRequest = await prisma.facilityRequest.update({
       where: { id },
       data: updateData,
       include: {
         user: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         responses: {
           orderBy: {
             createdAt: "asc",
@@ -185,6 +234,39 @@ export async function PATCH(
         },
       },
     });
+
+    // Audit log: track all field changes
+    const oldValues: Record<string, string | null> = {};
+    const newValues: Record<string, string | null> = {};
+
+    if (hasStatus && body.status !== existingRequest.status) {
+      oldValues.status = existingRequest.status;
+      newValues.status = body.status;
+    }
+    if (hasLocation && body.location !== existingRequest.location) {
+      oldValues.location = existingRequest.location;
+      newValues.location = body.location;
+    }
+    if (hasDescription && body.description !== existingRequest.description) {
+      oldValues.description = existingRequest.description;
+      newValues.description = body.description;
+    }
+    if (hasSeverity && body.severity !== existingRequest.severity) {
+      oldValues.severity = existingRequest.severity;
+      newValues.severity = body.severity;
+    }
+    if (hasCategory && body.category !== existingRequest.category) {
+      oldValues.category = existingRequest.category;
+      newValues.category = body.category;
+    }
+    if (hasAssigneeId && (body.assigneeId || null) !== existingRequest.assigneeId) {
+      oldValues.assigneeId = existingRequest.assigneeId;
+      newValues.assigneeId = body.assigneeId || null;
+    }
+
+    if (Object.keys(newValues).length > 0) {
+      logFieldChanges(id, session.user.id, "updated", oldValues, newValues);
+    }
 
     return NextResponse.json(facilityRequest);
   } catch (error) {

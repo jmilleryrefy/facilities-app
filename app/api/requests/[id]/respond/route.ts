@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendResponseNotification } from "@/lib/email";
 import { RequestStatus } from "@prisma/client";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(
   request: NextRequest,
@@ -80,6 +81,25 @@ export async function POST(
       }),
     ]);
 
+    // Audit log: admin responded
+    logAudit({
+      requestId: id,
+      actorId: session.user.id,
+      action: "responded",
+    });
+
+    // Audit log: status change if applicable
+    if (status && status !== existingRequest.status) {
+      logAudit({
+        requestId: id,
+        actorId: session.user.id,
+        action: "updated",
+        field: "status",
+        oldValue: existingRequest.status,
+        newValue: status,
+      });
+    }
+
     // Create in-app notification for the request owner
     await prisma.notification.create({
       data: {
@@ -87,7 +107,7 @@ export async function POST(
         requestId: id,
         message: `An administrator responded to your request for "${existingRequest.location}"`,
       },
-    }).catch((err) => console.error("Failed to create notification:", err));
+    }).catch((err: unknown) => console.error("Failed to create notification:", err));
 
     // Send email notification to user (non-blocking)
     sendResponseNotification(

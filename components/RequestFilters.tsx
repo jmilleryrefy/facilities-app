@@ -3,13 +3,27 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
 import Input from "@/components/ui/Input";
-import { RequestStatus } from "@prisma/client";
+import { RequestStatus, RequestCategory } from "@prisma/client";
+
+const categoryLabels: Record<string, string> = {
+  PLUMBING: "Plumbing",
+  ELECTRICAL: "Electrical",
+  HVAC: "HVAC",
+  CLEANING: "Cleaning",
+  SECURITY: "Security",
+  FURNITURE: "Furniture",
+  IT_EQUIPMENT: "IT Equipment",
+  STRUCTURAL: "Structural",
+  LANDSCAPING: "Landscaping",
+  OTHER: "Other",
+};
 
 export default function RequestFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const currentStatus = searchParams.get("status") || "ALL";
+  const currentCategory = searchParams.get("category") || "ALL";
   const currentSearch = searchParams.get("search") || "";
   const currentSort = searchParams.get("sort") || "newest";
 
@@ -73,6 +87,20 @@ export default function RequestFilters() {
             </button>
           ))}
         </div>
+
+        {/* Category filter */}
+        <select
+          value={currentCategory}
+          onChange={(e) => updateParam("category", e.target.value)}
+          className="px-3 py-1.5 border border-neutral-400 rounded-md text-sm text-neutral-700 bg-white"
+        >
+          <option value="ALL">All Categories</option>
+          {Object.entries(categoryLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
 
         {/* Sort */}
         <select

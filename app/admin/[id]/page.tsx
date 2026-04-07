@@ -14,8 +14,10 @@ import {
   User,
   RequestResponse,
   RequestStatus,
+  RequestCategory,
 } from "@prisma/client";
 import AttachmentList from "@/components/AttachmentList";
+import AuditLog from "@/components/AuditLog";
 
 type AttachmentInfo = {
   id: string;
@@ -30,8 +32,15 @@ type ResponseWithAuthor = RequestResponse & {
   isAdminResponse?: boolean;
 };
 
+type AdminUser = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
 type RequestWithDetails = FacilityRequest & {
   user: Pick<User, "id" | "name" | "email" | "department" | "jobTitle">;
+  assignee?: Pick<User, "id" | "name" | "email"> | null;
   responses: ResponseWithAuthor[];
   attachments: AttachmentInfo[];
 };
@@ -44,6 +53,9 @@ export default function AdminRespondPage() {
   const [request, setRequest] = useState<RequestWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [assigneeId, setAssigneeId] = useState<string>("");
+  const [assigningUser, setAssigningUser] = useState(false);
   const [formData, setFormData] = useState({
     message: "",
     status: "" as RequestStatus | "",
@@ -62,6 +74,7 @@ export default function AdminRespondPage() {
       const data = await response.json();
       setRequest(data);
       setFormData((prev) => ({ ...prev, status: data.status }));
+      setAssigneeId(data.assigneeId || "");
     } catch (error) {
       console.error("Error fetching request:", error);
       toast.error("Failed to load request");
@@ -70,9 +83,46 @@ export default function AdminRespondPage() {
     }
   }, [id, router]);
 
+  const fetchAdmins = useCallback(async () => {
+    try {
+      const response = await fetch("/api/users/admins");
+      if (response.ok) {
+        const data = await response.json();
+        setAdminUsers(data);
+      }
+    } catch (error) {
+      console.error("Error fetching admin users:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRequest();
-  }, [fetchRequest]);
+    fetchAdmins();
+  }, [fetchRequest, fetchAdmins]);
+
+  const handleAssign = async () => {
+    setAssigningUser(true);
+    try {
+      const response = await fetch(`/api/requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: assigneeId || null }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to assign request");
+      }
+      toast.success(assigneeId ? "Request assigned successfully" : "Assignment removed");
+      fetchRequest();
+    } catch (error) {
+      console.error("Error assigning request:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to assign request"
+      );
+    } finally {
+      setAssigningUser(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -148,7 +198,8 @@ export default function AdminRespondPage() {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle>{request.location}</CardTitle>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <Badge variant="category" category={request.category} />
                 <Badge variant="severity" severity={request.severity} />
                 <Badge variant="status" status={request.status} />
               </div>
@@ -188,6 +239,41 @@ export default function AdminRespondPage() {
                   <div className="text-gray-600">{request.user.jobTitle}</div>
                 )}
               </div>
+            </div>
+
+            {/* Assignment Section */}
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-gray-900 mb-2">Assign To</h3>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <select
+                    value={assigneeId}
+                    onChange={(e) => setAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-neutral-900 text-sm"
+                  >
+                    <option value="">Unassigned</option>
+                    {adminUsers.map((admin) => (
+                      <option key={admin.id} value={admin.id}>
+                        {admin.name || admin.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={assigneeId !== (request.assigneeId || "") ? "primary" : "secondary"}
+                  disabled={assigningUser || assigneeId === (request.assigneeId || "")}
+                  onClick={handleAssign}
+                >
+                  {assigningUser ? "Saving..." : "Update"}
+                </Button>
+              </div>
+              {request.assignee && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Currently assigned to {request.assignee.name || request.assignee.email}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -294,6 +380,8 @@ export default function AdminRespondPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AuditLog requestId={id} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import AttachmentList from "@/components/AttachmentList";
 import CommentForm from "@/components/CommentForm";
 import RequestActions from "@/components/RequestActions";
+import AuditLog from "@/components/AuditLog";
 
 export default async function RequestDetailPage({
   params,
@@ -28,6 +29,13 @@ export default async function RequestDetailPage({
           email: true,
           department: true,
           jobTitle: true,
+        },
+      },
+      assignee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
       responses: {
@@ -97,7 +105,8 @@ export default async function RequestDetailPage({
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle>{request.location}</CardTitle>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  <Badge variant="category" category={request.category} />
                   <Badge variant="severity" severity={request.severity} />
                   <Badge variant="status" status={request.status} />
                 </div>
@@ -154,6 +163,18 @@ export default async function RequestDetailPage({
                   )}
                 </div>
               </div>
+
+              {request.assignee && (
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Assigned To
+                  </h3>
+                  <div className="text-sm text-gray-700">
+                    <div>{request.assignee.name}</div>
+                    <div className="text-gray-600">{request.assignee.email}</div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -219,6 +240,8 @@ export default async function RequestDetailPage({
             </div>
           </CardContent>
         </Card>
+
+        <AuditLog requestId={request.id} />
       </div>
   );
 }

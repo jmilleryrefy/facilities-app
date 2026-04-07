@@ -6,10 +6,17 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { FacilityRequest, User, RequestResponse, RequestStatus } from "@prisma/client";
+import { FacilityRequest, User, RequestResponse, RequestStatus, RequestCategory } from "@prisma/client";
+
+type AdminUser = {
+  id: string;
+  name: string | null;
+  email: string;
+};
 
 type RequestWithDetails = FacilityRequest & {
   user: Pick<User, "id" | "name" | "email" | "department" | "jobTitle">;
+  assignee?: Pick<User, "id" | "name" | "email"> | null;
   responses: RequestResponse[];
 };
 
@@ -20,17 +27,45 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+const categoryLabels: Record<string, string> = {
+  PLUMBING: "Plumbing",
+  ELECTRICAL: "Electrical",
+  HVAC: "HVAC",
+  CLEANING: "Cleaning",
+  SECURITY: "Security",
+  FURNITURE: "Furniture",
+  IT_EQUIPMENT: "IT Equipment",
+  STRUCTURAL: "Structural",
+  LANDSCAPING: "Landscaping",
+  OTHER: "Other",
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<RequestWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<RequestStatus | "ALL">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("ALL");
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
     limit: 20,
     total: 0,
     totalPages: 1,
   });
+
+  const fetchAdmins = useCallback(async () => {
+    try {
+      const response = await fetch("/api/users/admins");
+      if (response.ok) {
+        const data = await response.json();
+        setAdminUsers(data);
+      }
+    } catch (error) {
+      console.error("Error fetching admin users:", error);
+    }
+  }, []);
 
   const fetchRequests = useCallback(
     async (page = 1) => {
@@ -43,6 +78,17 @@ export default function AdminDashboardPage() {
         if (filter !== "ALL") {
           params.set("status", filter);
         }
+        if (categoryFilter !== "ALL") {
+          params.set("category", categoryFilter);
+        }
+        if (assigneeFilter !== "ALL") {
+          if (assigneeFilter === "UNASSIGNED") {
+            // The API doesn't have an "unassigned" filter built-in;
+            // we'll filter client-side for unassigned
+          } else {
+            params.set("assigneeId", assigneeFilter);
+          }
+        }
         const response = await fetch(`/api/requests?${params}`);
         if (!response.ok) {
           if (response.status === 401) {
@@ -52,7 +98,12 @@ export default function AdminDashboardPage() {
           throw new Error("Failed to fetch requests");
         }
         const result = await response.json();
-        setRequests(result.data);
+        let data = result.data;
+        // Client-side filter for unassigned
+        if (assigneeFilter === "UNASSIGNED") {
+          data = data.filter((r: RequestWithDetails) => !r.assigneeId);
+        }
+        setRequests(data);
         setPagination(result.pagination);
       } catch (error) {
         console.error("Error fetching requests:", error);
@@ -60,8 +111,12 @@ export default function AdminDashboardPage() {
         setLoading(false);
       }
     },
-    [router, filter, pagination.limit]
+    [router, filter, categoryFilter, assigneeFilter, pagination.limit]
   );
+
+  useEffect(() => {
+    fetchAdmins();
+  }, [fetchAdmins]);
 
   useEffect(() => {
     fetchRequests(1);
@@ -84,22 +139,55 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {(["ALL", "PENDING", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const).map(
-          (status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                filter === status
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              {status.replace("_", " ")}
-            </button>
-          )
-        )}
+      <div className="space-y-3 mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {(["ALL", "PENDING", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const).map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  filter === status
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {status.replace("_", " ")}
+              </button>
+            )
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {/* Category filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-1.5 border border-neutral-400 rounded-md text-sm text-neutral-700 bg-white"
+          >
+            <option value="ALL">All Categories</option>
+            {Object.entries(categoryLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          {/* Assignee filter */}
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="px-3 py-1.5 border border-neutral-400 rounded-md text-sm text-neutral-700 bg-white"
+          >
+            <option value="ALL">All Assignees</option>
+            <option value="UNASSIGNED">Unassigned</option>
+            {adminUsers.map((admin) => (
+              <option key={admin.id} value={admin.id}>
+                {admin.name || admin.email}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {requests.length === 0 ? (
@@ -118,17 +206,18 @@ export default function AdminDashboardPage() {
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {request.location}
                         </h3>
+                        <Badge variant="category" category={request.category} />
                         <Badge variant="severity" severity={request.severity} />
                         <Badge variant="status" status={request.status} />
                       </div>
                       <p className="text-gray-600 mb-3 line-clamp-2">
                         {request.description}
                       </p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                         <span>
                           Submitted by {request.user.name} ({request.user.email})
                         </span>
@@ -136,6 +225,14 @@ export default function AdminDashboardPage() {
                         <span>
                           {new Date(request.createdAt).toLocaleDateString()}
                         </span>
+                        {request.assignee && (
+                          <>
+                            <span>&middot;</span>
+                            <span className="text-violet-600">
+                              Assigned to {request.assignee.name || request.assignee.email}
+                            </span>
+                          </>
+                        )}
                         {request.responses.length > 0 && (
                           <>
                             <span>&middot;</span>

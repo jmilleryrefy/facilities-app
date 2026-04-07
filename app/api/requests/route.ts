@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendNewRequestNotification } from "@/lib/email";
-import { Severity, Prisma } from "@prisma/client";
+import { Severity, RequestCategory, Prisma } from "@prisma/client";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const status = searchParams.get("status");
+    const category = searchParams.get("category");
+    const assigneeId = searchParams.get("assigneeId");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
     const skip = (page - 1) * limit;
@@ -35,6 +38,16 @@ export async function GET(request: NextRequest) {
       where.status = status as Prisma.EnumRequestStatusFilter;
     }
 
+    // Filter by category if provided
+    if (category) {
+      where.category = category as Prisma.EnumRequestCategoryFilter;
+    }
+
+    // Filter by assignee if provided
+    if (assigneeId) {
+      where.assigneeId = assigneeId;
+    }
+
     const [requests, total] = await Promise.all([
       prisma.facilityRequest.findMany({
         where,
@@ -46,6 +59,13 @@ export async function GET(request: NextRequest) {
               email: true,
               department: true,
               jobTitle: true,
+            },
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
           responses: {
@@ -91,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { location, description, severity } = body;
+    const { location, description, severity, category } = body;
 
     // Validation
     if (!location || !description) {
@@ -108,6 +128,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (category && !Object.values(RequestCategory).includes(category)) {
+      return NextResponse.json(
+        { error: "Invalid category value" },
+        { status: 400 }
+      );
+    }
+
     // Create the request
     const facilityRequest = await prisma.facilityRequest.create({
       data: {
@@ -115,10 +142,18 @@ export async function POST(request: NextRequest) {
         location,
         description,
         severity: severity || Severity.MEDIUM,
+        category: category || RequestCategory.OTHER,
       },
       include: {
         user: true,
       },
+    });
+
+    // Audit log
+    logAudit({
+      requestId: facilityRequest.id,
+      actorId: session.user.id,
+      action: "created",
     });
 
     // Send email notification (non-blocking)
