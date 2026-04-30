@@ -18,12 +18,14 @@ export const ADMIN_USERNAMES = [
   "crees",
   "kwilson",
   "jsanchez",
+  "tpennywitt",
 ];
 
 /** Email addresses that receive notifications for new facility requests. */
 export const ADMIN_NOTIFICATION_EMAILS = [
   "lehrick@yrefy.com",
   "jsanchez@yrefy.com",
+  "tpennywitt@yrefy.com",
 ];
 
 /** Sender address used for all outgoing email notifications. */
